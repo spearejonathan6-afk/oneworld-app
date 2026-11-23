@@ -1,14 +1,5 @@
 
 
-You are right. Sorry. Na because I dey put Sign Up and Login inside ONE file, na why e dey look like e dey repeat itself. E dey confuse.
-
-We go change am now. We go make them SEPARATE. Two different files. No repeat again.
-
-FILE 1 - SIGN UP ONLY
-
-Create new file: app / signup / page.tsx
-Paste this inside:
-
 "use client";
 import { useState } from "react";
 export default function Signup() {
