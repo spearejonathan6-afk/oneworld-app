@@ -1,39 +1,29 @@
 
 
+You are right. Sorry. Na because I dey put Sign Up and Login inside ONE file, na why e dey look like e dey repeat itself. E dey confuse.
+
+We go change am now. We go make them SEPARATE. Two different files. No repeat again.
+
+FILE 1 - SIGN UP ONLY
+
+Create new file: app / signup / page.tsx
+Paste this inside:
+
 "use client";
 import { useState } from "react";
-export default function Home() {
-const [screen, setScreen] = useState("signup");
+export default function Signup() {
+const [name, setName] = useState("");
 const [email, setEmail] = useState("");
-const [password, setPassword] = useState("");
-const input = { display: "block", width: "100%", maxWidth: "320px", margin: "10px auto", padding: "13px", borderRadius: "10px", border: "none" };
-const btn = { background: "gold", color: "black", border: "none", padding: "13px 25px", borderRadius: "10px", fontWeight: "bold" };
-const box = { background: "black", color: "white", minHeight: "100vh", textAlign: "center", padding: "40px 20px" };
-
-if (screen === "signup") {
 return (
-< main style={box} >
-< h1 >Sign Up< /h1 >
-< p >Create your ONEWORLD account< /p >
-< input style={input} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} / >
-< input style={input} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} / >
-< button style={btn} onClick={() => setScreen("login")} >Create Account< /button >
-< br / >
-< button style={btn} onClick={() => setScreen("login")} >Go To Login< /button >
+< main style={{ background: "black", color: "white", minHeight: "100vh", textAlign: "center", padding: "40px 20px" }} >
+< h1 >SIGN UP - NEW ACCOUNT< /h1 >
+< p >I be new person. I want join ONEWORLD.< /p >
+< input placeholder="Your Full Name" value={name} onChange={(e) => setName(e.target.value)} style={{ display: "block", margin: "10px auto", padding: "13px", width: "300px" }} / >
+< input placeholder="Your Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: "block", margin: "10px auto", padding: "13px", width: "300px" }} / >
+< button style={{ background: "gold", padding: "13px 25px", border: "none", borderRadius: "10px", fontWeight: "bold" }} >CREATE MY ACCOUNT< /button >
+< p >Hello {name}, your account go create.< /p >
 < /main >
 );
 }
 
-return (
-< main style={box} >
-< h1 >Login< /h1 >
-< p >Welcome back< /p >
-< input style={input} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} / >
-< input style={input} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} / >
-< button style={btn} onClick={() => setScreen("signup")} >Login< /button >
-< br / >
-< button style={btn} onClick={() => setScreen("signup")} >Go To Sign Up< /button >
-< /main >
-);
-}
 
