@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const COUNTRIES = [
   'Liberia',
@@ -15,37 +20,42 @@ const COUNTRIES = [
   'Kenya',
 ];
 
-export default function OneWorldOnboarding() {
-  // Navigation state: 'landing' (Page 1) | 'signup' (Page 2) | 'verify' (Page 2b) | 'terms' (Page 2c) | 'home'
-  const [step, setStep] = useState('landing');
-  const [authMethod, setAuthMethod] = useState('phone'); // 'phone' | 'email'
+export default function OneWorldApp() {
+  const [step, setStep] = useState<'landing' | 'signup' | 'verify' | 'terms' | 'home'>('landing');
+  const [authMethod, setAuthMethod] = useState<'phone' | 'email'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
-  // Form Data (Page 2)
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     country: 'Liberia',
     phone: '',
     email: '',
-    dob: '',
+    dobDay: '',
+    dobMonth: '',
+    dobYear: '',
     password: '',
     confirmPassword: '',
   });
 
-  // 4-Digit OTP State (Page 2b)
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const otpRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
   };
 
-  // Step 2 -> Step 2b: Validate & Send OTP
-  const handleSignupNext = async (e) => {
+  const handleSignupNext = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -60,10 +70,15 @@ export default function OneWorldOnboarding() {
     try {
       if (authMethod === 'phone') {
         if (!formData.phone) throw new Error('Please enter your mobile number.');
+        const formattedPhone = formData.phone.startsWith('+')
+          ? formData.phone
+          : `+${formData.phone.replace(/^0+/, '')}`;
+
         const { error: otpError } = await supabase.auth.signInWithOtp({
-          phone: formData.phone,
+          phone: formattedPhone,
         });
         if (otpError) throw otpError;
+        setFormData((prev) => ({ ...prev, phone: formattedPhone }));
       } else {
         if (!formData.email) throw new Error('Please enter your email address.');
         const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -72,38 +87,35 @@ export default function OneWorldOnboarding() {
         if (otpError) throw otpError;
       }
       setStep('verify');
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Failed to send verification code.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle 4-Digit OTP Input Boxes
-  const handleOtpChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return; // Digits only
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
     const newOtp = [...otp];
     newOtp[index] = value.slice(-1);
     setOtp(newOtp);
 
-    // Auto-advance to next input
-    if (value && index < 3) {
-      otpRefs[index + 1].current.focus();
+    if (value && index < 5) {
+      otpRefs[index + 1].current?.focus();
     }
   };
 
-  const handleOtpKeyDown = (index, e) => {
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs[index - 1].current.focus();
+      otpRefs[index - 1].current?.focus();
     }
   };
 
-  // Step 2b -> Step 2c: Verify 4-Digit Code
-  const handleVerifyCode = async (e) => {
+  const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = otp.join('');
-    if (token.length !== 4) {
-      return setError('Please enter all 4 digits.');
+    if (token.length !== 6) {
+      return setError('Please enter all 6 digits.');
     }
 
     setLoading(true);
@@ -111,14 +123,14 @@ export default function OneWorldOnboarding() {
     try {
       const verifyPayload =
         authMethod === 'phone'
-          ? { phone: formData.phone, token, type: 'sms' }
-          : { email: formData.email, token, type: 'email' };
+          ? { phone: formData.phone, token, type: 'sms' as const }
+          : { email: formData.email, token, type: 'email' as const };
 
       const { error: verifyError } = await supabase.auth.verifyOtp(verifyPayload);
       if (verifyError) throw verifyError;
 
       setStep('terms');
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Invalid verification code.');
     } finally {
       setLoading(false);
@@ -136,26 +148,28 @@ export default function OneWorldOnboarding() {
           : { email: formData.email };
       const { error: resendError } = await supabase.auth.signInWithOtp(payload);
       if (resendError) throw resendError;
-      setMessage('A new 4-digit code has been sent.');
-    } catch (err) {
+      setMessage('A new code has been sent.');
+    } catch (err: any) {
       setError(err.message || 'Could not resend code.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 2c -> Complete Registration & Save Profile
   const handleAgreeAndCreate = async () => {
     setLoading(true);
     setError('');
     try {
-      // 1. Set the user's chosen password on their verified Supabase Auth account
       const { data: userData, error: updateError } = await supabase.auth.updateUser({
         password: formData.password,
       });
       if (updateError) throw updateError;
 
-      // 2. Save extra profile fields to the public.profiles table
+      const formattedDob =
+        formData.dobYear && formData.dobMonth && formData.dobDay
+          ? `${formData.dobYear}-${formData.dobMonth.padStart(2, '0')}-${formData.dobDay.padStart(2, '0')}`
+          : null;
+
       if (userData?.user) {
         const { error: profileError } = await supabase.from('profiles').insert([
           {
@@ -165,14 +179,14 @@ export default function OneWorldOnboarding() {
             country: formData.country,
             phone: authMethod === 'phone' ? formData.phone : null,
             email: authMethod === 'email' ? formData.email : null,
-            dob: formData.dob || null,
+            dob: formattedDob,
           },
         ]);
         if (profileError) throw profileError;
       }
 
       setStep('home');
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message || 'Error finalizing your account.');
     } finally {
       setLoading(false);
@@ -180,10 +194,8 @@ export default function OneWorldOnboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 font-sans">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl">
-        
-        {/* ================= PAGE 1: THE OPENING PAGE ================= */}
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-5 font-sans">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-7 shadow-2xl">
         {step === 'landing' && (
           <div className="flex flex-col items-center text-center space-y-10 py-8">
             <div className="space-y-3">
@@ -212,7 +224,7 @@ export default function OneWorldOnboarding() {
             </div>
 
             <button
-              onClick={() => alert('Support: help@oneworld.app')}
+              onClick={() => alert('Contact us: support@oneworld.app')}
               className="text-sm text-slate-400 hover:text-white underline underline-offset-4 pt-4"
             >
               Contact us / Need help?
@@ -220,10 +232,9 @@ export default function OneWorldOnboarding() {
           </div>
         )}
 
-        {/* ================= PAGE 2: THE SIGN UP PAGE ================= */}
         {step === 'signup' && (
-          <form onSubmit={handleSignupNext} className="space-y-5">
-            <div className="text-center space-y-1">
+          <form onSubmit={handleSignupNext} className="space-y-4">
+            <div className="text-center space-y-1 pb-1">
               <h1 className="text-2xl font-extrabold tracking-widest text-blue-400">
                 ONEWORLD
               </h1>
@@ -233,12 +244,11 @@ export default function OneWorldOnboarding() {
             </div>
 
             {error && (
-              <div className="p-3 text-sm bg-red-500/10 border border-red-500/50 text-red-300 rounded-xl">
+              <div className="p-3 text-xs bg-red-500/10 border border-red-500/50 text-red-300 rounded-xl">
                 {error}
               </div>
             )}
 
-            {/* First & Last Name */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">First name</label>
@@ -266,7 +276,6 @@ export default function OneWorldOnboarding() {
               </div>
             </div>
 
-            {/* Country Dropdown */}
             <div>
               <label className="block text-xs text-slate-400 mb-1">Country</label>
               <select
@@ -283,14 +292,9 @@ export default function OneWorldOnboarding() {
               </select>
             </div>
 
-            {/* Mobile Number OR Email Toggle */}
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="text-xs text-slate-400">
-                  {authMethod === 'phone' ? 'Mobile Number' : 'Email Address'}
+                  {authMethod === 'phone' ? 'Mobile Number' : 'Email'}
                 </label>
                 <button
-                  type="button"
-                  onClick={() =>
-                    setAuthMethod(authMethod === 'phone' ? 'email' : 'phone')
-                  }
